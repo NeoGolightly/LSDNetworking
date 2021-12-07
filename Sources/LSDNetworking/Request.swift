@@ -8,8 +8,7 @@
 import Foundation
 
 
-public protocol EmptyBodyType: Codable{}
-public struct EmptyBody: Codable, EmptyBodyType { public init() {} }
+
 
 /// RequestType
 public protocol RequestType {

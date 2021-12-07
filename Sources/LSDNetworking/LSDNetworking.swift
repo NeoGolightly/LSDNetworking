@@ -110,6 +110,7 @@ struct FakeApiEndpointCollection {
 
 extension Endpoint {
   static let todos: Endpoint = Endpoint(basePath: "todos")
+  static let bucketItem: Endpoint = Endpoint(basePath: "bucket_items")
 }
 
 extension RootServer {
