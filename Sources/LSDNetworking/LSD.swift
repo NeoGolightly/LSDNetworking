@@ -6,157 +6,87 @@
 //
 
 import Foundation
+import Logging
+import Combine
 
-enum ContentType: String {
-  case json = "application/json"
+var logger: Logger {
+  var logger = Logger(label: "LSD Networking")
+  logger.logLevel = .debug
+  return logger
 }
 
-public protocol EmptyBodyType: Codable{}
-public struct EmptyBody: Codable, EmptyBodyType { public init() {} }
-public struct EmptyReturn: Codable { public init() {} }
-
-class LSDRequest<B: Codable, R: Codable>: LSDComponentType, LSDRequestType {
-  typealias Body = B
-  typealias ReturnType = R
-  private var _httpMethod: HTTPMethod = .GET
-  private var _returnType: R.Type
-  private var _body: B?
-  private var _contentType: ContentType?
-  
-  internal init(body: B?, returnType: R.Type, method: HTTPMethod) {
-    _body = body
-    _returnType = returnType
-    _httpMethod = method
-  }
-  
-  public init(_ request: LSDRequest) {
-    _body = request._body
-    _returnType = request._returnType
-    _httpMethod = request._httpMethod
-  }
-  
-  func applicationJSON() -> Self {
-    _contentType = .json
-    return self
-  }
-  
-  func build() -> URLRequest {
-    URLRequest(url: URL(string: "")!)
-  }
+public struct LSDProgress{
+  let expectedLength: Int
+  let bytesCount: Int
+  let progress: Double
 }
 
-extension LSDRequest {
-  static func POST(body: B?, returnType: R.Type) -> LSDRequest {
-    LSDRequest(body: body, returnType: returnType, method: .POST)
-  }
-  
-  static func GET(body: B?, returnType: R.Type) -> LSDRequest {
-    LSDRequest(body: body, returnType: returnType, method: .POST)
-  }
-}
-
-protocol LSDRequestType {
-  associatedtype ReturnType: Codable
-  associatedtype Body: Codable
-  func build() -> URLRequest
-}
+public protocol EmptyType: Codable {}
+public struct EmptyBody: EmptyType { public init() {} }
 
 
-protocol LSDComponentType {}
-@resultBuilder
-struct ComponentBuilder {
-  static func buildBlock(_ components: LSDComponentType...) -> [LSDComponentType] {
-    components
-  }
-}
-
-
-@resultBuilder
-class TripBuilder<B: Codable, R: Codable> {
-  typealias Body = B
-  typealias ReturnType = R
-  static func buildBlock(_ components: TripComponent<B, R>...) -> TripComponent<B, R> {
-    guard let server = components.filter({ $0._componentType == .server }).last,
-          let endpoint = components.filter({ $0._componentType == .endpoint }).last,
-          let request = components.filter({ $0._componentType == .request }).last
-    else { fatalError("could not build request")}
-    return TripComponent(endpoint: endpoint._endpoint, request: request._request, server: server._server, componentType: .finalBuild)
-  }
-  
-  static func buildExpression(_ expression: LSDRequest<B, R>) -> TripComponent<B, R> {
-    TripComponent(request: expression, componentType: .request)
-  }
-  
-  static func buildExpression(_ expression: Endpoint) -> TripComponent<B, R> {
-    TripComponent(endpoint: expression, componentType: .endpoint)
-  }
-  
-  static func buildExpression(_ expression: Server) -> TripComponent<B, R> {
-    TripComponent(server: expression, componentType: .endpoint)
-  }
+public class LSDTrip<B: Codable, R: Codable, T: Request<B, R>> {
   
 
   
-}
-
-enum TripComponentType {
-  case endpoint, request, server, finalBuild
-}
-
-struct Server {
-  let scheme: HTTPScheme
-  let host: String?
-  let port: Int?
-  
-  public init(scheme: HTTPScheme = .https, host: String? = nil, port: Int? = nil) {
-    self.scheme = scheme
-    self.host = host
-    self.port = port
-  }
-}
-
-struct TripComponent<B: Codable, R: Codable> {
-  typealias Body = B
-  typealias ReturnType = R
-  var _endpoint: Endpoint?
-  var _request: LSDRequest<B, R>?
-  var _server: Server?
-  var _componentType: TripComponentType
-  
-  init(endpoint: Endpoint? = nil,
-       request: LSDRequest<B, R>? = nil,
-       server: Server? = nil,
-       componentType: TripComponentType) {
-    _endpoint = endpoint
-    _request = request
-    _server = server
-    _componentType = componentType
-  }
-}
-
-extension RandomAccessCollection {
-//  func join<B: Codable, R: Codable>() -> Element where Element == TripComponent<B,R>, B: Codable, R: Codable {
-//    let request = LSDRequest<EmptyBody, EmptyReturn>(body: EmptyBody(), returnType: EmptyReturn.self)
-//    return TripComponent<LSDRequest.Body, LSDRequest.ReturnType>(request: request, componentType: .request)
-//  }
-}
-
-
-class LSDTrip<B: Codable, R: Codable, T: LSDRequest<B, R>> {
-
   private weak var _lsd: LSD?
-  private var _request: LSDRequest<B, R>
-  init(lsd: LSD, request: LSDRequest<B, R>) {
+  private let _tripComponent: TripComponent<B, R>
+
+  init(lsd: LSD, tripComponent: TripComponent<B, R>) {
     _lsd = lsd
-    _request = request
+    _tripComponent = tripComponent
   }
   
-  func tuneIn() async throws -> R {
-    guard let lsd = _lsd else { fatalError("no lsd :/") }
-
-    let sessionRequest = _request.build()
+  private func buildURLRequest() throws -> URLRequest {
+    guard var components = _tripComponent._endpoint?.components()
+    else { throw LSDTripError.noEndpointComponents }
     
-    let (responseData, response) = try await lsd.urlSession.data(for: sessionRequest)
+    // If Server is configured in LSD class
+    if let server = _lsd?._server {
+      components.host = server.host
+      components.scheme = server.scheme.rawValue
+      components.port = server.port
+    }
+    
+    // If Server is added in TripBuilder
+    if let server = _tripComponent._server {
+      components.host = server.host
+      components.scheme = server.scheme.rawValue
+      components.port = server.port
+    }
+    
+    guard let url = components.url else { throw LSDTripError.badURL }
+    guard let request = _tripComponent._request else { throw LSDTripError.noRequestComponents }
+    
+    let urlRequest = URLRequest(url: url)
+    
+    return try urlRequest.configure(with: request)
+  }
+  
+  public func tuneIn(progressID: String = UUID().uuidString) async throws -> R {
+    guard let lsd = _lsd else { throw LSDTripError.noLSD }
+    
+    var sessionRequest: URLRequest
+    do {
+     sessionRequest = try buildURLRequest()
+    } catch {
+      throw LSDTripError.badRequest
+    }
+    let (asyncBytes, response) = try await lsd._urlSession.bytes(for: sessionRequest)
+    
+    let length = Int(response.expectedContentLength)
+    var responseData = Data()
+    responseData.reserveCapacity(length)
+    for try await byte in asyncBytes {
+      responseData.append(byte)
+      let progress = Double(responseData.count) / Double(length)
+      lsd._progress.send([progressID : LSDProgress(expectedLength: length,
+                                                   bytesCount: responseData.count,
+                                                   progress: progress)])
+//      logger.debug("\(String(describing: sessionRequest.httpMethod ?? ""))", metadata: ["percent" : "\(progress)"])
+    }
+    
+    
     guard let httpResponse = response as? HTTPURLResponse,
           200..<300 ~= httpResponse.statusCode
     else { throw LSDNetworkingError.serverError(errorCode: (response as! HTTPURLResponse).statusCode) }
@@ -165,28 +95,55 @@ class LSDTrip<B: Codable, R: Codable, T: LSDRequest<B, R>> {
   }
 }
 
-class LSD {
-
-  internal var urlSession: URLSession
-  private let rootServer: RootServer?
+public class LSD {
   
-  init(rootServer: RootServer? = nil, urlSession: URLSession = .shared) {
-    self.rootServer = rootServer
-    self.urlSession = urlSession
+  public var progress: AnyPublisher<[String: LSDProgress], Never> {
+    _progress.eraseToAnyPublisher()
   }
   
-  func turnOn<B: Codable, R: Codable, T: LSDRequest<B, R>>(@TripBuilder<B, R> _ component: () -> (TripComponent<B,R>)) -> LSDTrip<B, R, T> {
-    LSDTrip(lsd: self, request: component()._request!)
+  internal let _progress = PassthroughSubject<[String: LSDProgress], Never>()
+  
+  internal var _urlSession: URLSession
+  internal let _server: Server?
+  
+  public init(server: Server? = nil, urlSession: URLSession = .shared) {
+    _server = server
+    _urlSession = urlSession
   }
+  
+  public func turnOn<B: Codable, R: Codable, T: Request<B, R>>(@TripBuilder<B, R> _ component: () -> (TripComponent<B,R>)) -> LSDTrip<B, R, T> {
+    LSDTrip(lsd: self, tripComponent: component())
+  }
+  
+  ///"Turn on" meant go within to activate your neural and genetic equipment. Become sensitive to the many and various levels of consciousness and the specific triggers engaging them. Drugs were one way to accomplish this end. "Tune in" meant interact harmoniously with the world around you—externalize, materialize, express your new internal perspectives. "Drop out" suggested an active, selective, graceful process of detachment from involuntary or unconscious commitments. "Drop Out" meant self-reliance, a discovery of one's singularity, a commitment to mobility, choice, and change. Unhappily, my explanations of this sequence of personal development are often misinterpreted to mean "Get stoned and abandon all constructive activity".
 }
 
-extension Endpoint: LSDComponentType {}
+//extension Endpoint: LSDComponentType {}
+
+extension Server {
+  static let fakeApiRoot = Server(scheme: .https, host: "todos.ngrok.io")
+}
+
+extension Endpoint {
+  static let todos: Endpoint = Endpoint(basePath: "todos")
+  static let bucketItem: Endpoint = Endpoint(basePath: "bucket_items")
+}
 
 
+enum HTTPStatus: Codable {
+  case OK
+  case created
+  case noContent
+}
+
+struct Todo: Codable {
+  let id: UUID?
+  let title: String
+}
 
 class FakeAPI {
   
-  private let lsd = LSD(rootServer: .fakeApiRoot)
+  private let lsd = LSD(server: .fakeApiRoot)
   
   func getTodos() -> [Todo] {
     
@@ -197,7 +154,7 @@ class FakeAPI {
     try await lsd.turnOn {
       Server(scheme: .https, host: "todos.ngrok.io")
       Endpoint(.todos)
-      LSDRequest(.POST(body: todo, returnType: Todo.self))
+      Request(.POST(body: todo, returnType: Todo.self))
     }.tuneIn()
   }
   
@@ -206,7 +163,7 @@ class FakeAPI {
   func getTodo(id: String) async throws -> Todo {
     try await lsd.turnOn {
       Endpoint(.bucketItem).addParameter(id)
-      LSDRequest(.GET(body: EmptyBody(), returnType: Todo.self))
+      Request(.GET(returnType: Todo.self))
         .applicationJSON()
     }.tuneIn()
     
@@ -214,17 +171,22 @@ class FakeAPI {
   
   func likeTodo(id: String) async throws -> Todo {
     try await lsd.turnOn {
-      //www.meinServer.de/bucket_item/12412412412412/favorites
       Endpoint(.bucketItem)
         .addParameter(id)
         .addParameter("favorites")
-      LSDRequest(.GET(body: EmptyBody(), returnType: Todo.self))
+      Request(.GET(returnType: Todo.self))
         .applicationJSON()
     }.tuneIn()
     
   }
   
-  func deleteTodo(id: String) -> HTTPStatus {
-    .noContent
+  func deleteTodo(id: String) async throws -> HTTPStatus {
+    try await lsd.turnOn {
+      Endpoint(.bucketItem)
+        .addParameter(id)
+        .addParameter("favorites")
+      Request(.DELETE(returnType: HTTPStatus.self))
+        .applicationJSON()
+    }.tuneIn()
   }
 }

@@ -7,8 +7,8 @@
 
 import Foundation
 
-public enum ReturnType{
-  case JSON, HTML
+public enum DecoderType {
+  case JSON
 }
 
 public enum HTTPScheme: String {
@@ -17,4 +17,18 @@ public enum HTTPScheme: String {
 
 public enum HTTPMethod: String {
   case GET, POST, PUT, PATCH, DELETE
+}
+
+enum ContentType: String {
+  case json = "application/json"
+}
+
+enum HeaderFields: String {
+  case contentType = "Content-Type"
+  case accept = "Accept"
+}
+
+extension String {
+  static let contentType = HeaderFields.contentType.rawValue
+  static let accept = HeaderFields.accept.rawValue
 }

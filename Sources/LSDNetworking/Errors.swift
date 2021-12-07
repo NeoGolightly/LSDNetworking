@@ -21,3 +21,11 @@ enum EndpointError: Error {
 enum RequestError: Error {
   case badResponseType
 }
+
+enum LSDTripError: Error {
+case noLSD
+case badRequest
+case noEndpointComponents
+case noRequestComponents
+case badURL
+}
