@@ -1,4 +1,4 @@
-# LSDNetwork
+# LSDNetworking
 
 Swift networking DSL around URLComponents, URLRequest and URLSession with Swifts new async/await concurrency system.
 
