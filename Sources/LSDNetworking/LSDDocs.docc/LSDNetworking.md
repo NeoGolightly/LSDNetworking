@@ -1,11 +1,11 @@
-# LSDNetwork
+# ``LSDNetworking``
 
 Swift networking DSL around URLComponents, URLRequest and URLSession with Swifts new async/await concurrency system.
 
 ## Overview
 
 ```swift
-let server = Server(scheme: .https,
+let server = Server(scheme: .https, 
                     host: "yourRootServer.com")
 let lsd = LSD(server: server)
 let todos = try await lsd.turnOn {
@@ -30,3 +30,26 @@ let newTodoReturn = try await lsd.turnOn {
   Request(.POST(body: newTodo, returnType: Todo.self))
 }.tuneIn(progressID: id)
 ```
+
+## Topics
+
+### Base objects
+
+- ``LSD``
+- ``Endpoint``
+- ``Request``
+
+### Server
+
+- ``Server``
+
+### LSDTrip
+
+- ``LSDTrip``
+- ``TripComponent``
+- ``TripBuilder``
+
+### Progress
+
+- ``LSDProgress``
+- ``LSDProgressType``

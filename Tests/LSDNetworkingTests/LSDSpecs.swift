@@ -2,20 +2,28 @@
 //  File.swift
 //  
 //
-//  Created by Michael Helmbrecht on 04.12.21.
+//  Created by Neo Golightly on 04.12.21.
 //
 
 import Quick
 import Nimble
 import Foundation
 @testable import LSDNetworking
+import Combine
 
 class LSDSpecs: QuickSpec {
+  private var subscriptions = Set<AnyCancellable>()
   override func spec() {
     describe("LSD Networking") {
       it("fetcheses some todos") {
         self.runAsyncTest {
-          
+//          let api = FakeAPI()
+//          api.progress.sink { progress in
+//            print(progress)
+//          }.store(in: &self.subscriptions)
+//
+//          let todos = try await api.getTodos()
+//          print(todos)
         }
       }
     }

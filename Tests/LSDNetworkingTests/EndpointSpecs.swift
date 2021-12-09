@@ -2,7 +2,7 @@
 //  File.swift
 //  
 //X
-//  Created by Michael Helmbrecht on 02.12.21.
+//  Created by Neo Golightly on 02.12.21.
 //
 
 import XCTest
@@ -34,6 +34,16 @@ final class EndpointSpecs: XCTestCase {
     
     print(todos)
     
-    
+    for todo in todos {
+      guard let id = todo.id?.uuidString else { continue }
+      let status = try await lsd.turnOn {
+        Endpoint(basePath: "/todos")
+          .addParameter("/"+id)
+        Request(.DELETE(returnType: HTTPStatus.self))
+      }.tuneIn()
+     print(status)
+    }
   }
 }
+
+
