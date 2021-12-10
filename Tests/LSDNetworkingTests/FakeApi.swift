@@ -14,6 +14,16 @@ struct Todo: Codable {
   let title: String
 }
 
+//extension Endpoint: LSDComponentType {}
+
+extension Server {
+  static let fakeApiRoot = Server(scheme: .https, host: "todos.ngrok.io")
+}
+
+extension Endpoint {
+  static let todos: Endpoint = Endpoint(basePath: "/todos")
+}
+
 class FakeAPI {
   
   public var progress: AnyPublisher<LSDProgressType, Never>
@@ -44,7 +54,7 @@ class FakeAPI {
   
   func getTodo(id: String) async throws -> Todo {
     try await lsd.turnOn {
-      Endpoint(.bucketItem).addParameter(id)
+      Endpoint(.todos).addParameter(id)
       Request(.GET(returnType: Todo.self))
         .applicationJSON()
     }.tuneIn()
@@ -53,7 +63,7 @@ class FakeAPI {
   
   func likeTodo(id: String) async throws -> Todo {
     try await lsd.turnOn {
-      Endpoint(.bucketItem)
+      Endpoint(.todos)
         .addParameter(id)
         .addParameter("favorites")
       Request(.GET(returnType: Todo.self))
@@ -64,9 +74,8 @@ class FakeAPI {
   
   func deleteTodo(id: String) async throws -> HTTPStatus {
     try await lsd.turnOn {
-      Endpoint(.bucketItem)
+      Endpoint(.todos)
         .addParameter(id)
-        .addParameter("favorites")
       Request(.DELETE(returnType: HTTPStatus.self))
         .applicationJSON()
     }.tuneIn()

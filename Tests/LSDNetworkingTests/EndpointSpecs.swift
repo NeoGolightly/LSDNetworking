@@ -19,7 +19,7 @@ final class EndpointSpecs: XCTestCase {
       print(progress?.progress ?? 0)
     }.store(in: &subscriptions)
     
-    let newTodo = Todo(id: nil, title: "Niki…es geht :D")
+    let newTodo = Todo(id: nil, title: "It's working :D")
     let newTodoReturn = try await lsd.turnOn {
       Endpoint(basePath: "/todos")
       Request(.POST(body: newTodo, returnType: Todo.self))

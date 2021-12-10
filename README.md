@@ -42,6 +42,6 @@ let newTodoReturn = try await lsd.turnOn {
 - [ ] Full documentation
 - [ ] Cancel Request
 - [ ] Pause Request
-- [ ] Get status
+- [ ] Get request events
 - [ ] Get results on main thread
 - [ ] Send multiple async requests

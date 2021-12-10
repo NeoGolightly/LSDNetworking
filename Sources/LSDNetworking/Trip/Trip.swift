@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct LSDTrip<B: Codable, R: Codable, T: Request<B, R>> {
+public actor LSDTrip<B: Codable, R: Codable, T: Request<B, R>> {
   private weak var _lsd: LSD?
   private let _tripComponent: TripComponent<B, R>
   
@@ -23,9 +23,10 @@ public struct LSDTrip<B: Codable, R: Codable, T: Request<B, R>> {
   /// - Returns: Rquests return object
   ///
   /// Timothy Leary: "Tune in" meant interact harmoniously with the world around you—externalize, materialize, express your new internal perspectives.
+  @MainActor
   public func tuneIn(progressID: String = UUID().uuidString) async throws -> R {
-    guard let lsd = _lsd else { throw LSDTripError.noLSD }
-    guard let sessionRequest = try? buildURLRequest() else { throw LSDTripError.badRequest }
+    guard let lsd = await _lsd else { throw LSDTripError.noLSD }
+    guard let sessionRequest = try? await buildURLRequest() else { throw LSDTripError.badRequest }
     //
     let (asyncBytes, response) = try await lsd._urlSession.bytes(for: sessionRequest)
     // Set expected

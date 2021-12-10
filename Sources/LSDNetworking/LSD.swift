@@ -9,7 +9,7 @@ import Foundation
 import Logging
 import Combine
 
-public class LSD {
+public final class LSD {
   
   public var progress: AnyPublisher<LSDProgressType, Never> {
     _progress.eraseToAnyPublisher()
@@ -43,9 +43,7 @@ public class LSD {
   }
 }
 
-
-
-
+// MARK: - Logger
 extension LSD {
   public static var logLevel: Logger.Level = .debug
   static var logger: Logger {
@@ -55,19 +53,3 @@ extension LSD {
     return logger
   }
 }
-
-//extension Endpoint: LSDComponentType {}
-
-extension Server {
-  static let fakeApiRoot = Server(scheme: .https, host: "todos.ngrok.io")
-}
-
-extension Endpoint {
-  static let todos: Endpoint = Endpoint(basePath: "/todos")
-  static let bucketItem: Endpoint = Endpoint(basePath: "/bucket_items")
-}
-
-
-
-
-
