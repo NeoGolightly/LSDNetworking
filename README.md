@@ -30,3 +30,18 @@ let newTodoReturn = try await lsd.turnOn {
   Request(.POST(body: newTodo, returnType: Todo.self))
 }.tuneIn(progressID: id)
 ```
+
+
+## Todo
+- [x] Create Server configuration
+- [x] Create Endpoint
+- [x] Create Request
+- [x] Send request (GET, POST, PATCH, PUT, DELETE)
+- [x] Get progress
+- [ ] Write tests
+- [ ] Full documentation
+- [ ] Cancel Request
+- [ ] Pause Request
+- [ ] Get status
+- [ ] Get results on main thread
+- [ ] Send multiple async requests
